@@ -21,6 +21,7 @@ extern "C" {
 #include "emu_smartcard.h"
 #include "emu_dataflash.h"
 #include "emulator_ui.h"
+#include "emu_aux_mcu.h"
 #include "fido/emu_fido.h"
 
 static struct emu_port_t _PORT;
@@ -178,6 +179,7 @@ int main(int ac, char ** av)
 
     parser.addOption(QCommandLineOption("smartcard", "Smartcard file to be used at startup", "smartcard"));
     parser.addOption(QCommandLineOption("bundle", "Specify path to bundle.img file", "bundle"));
+    parser.addOption(QCommandLineOption("set-time", "Set the device time from the host clock at startup (what Moolticute normally does)"));
     parser.addOption(QCommandLineOption("fido", "Expose the emulator as a FIDO2 device on the host (Linux uhid)"));
     parser.process(app);
 
@@ -211,6 +213,9 @@ int main(int ac, char ** av)
     emu_window.show();
 
     oled->show();
+
+    if(parser.isSet("set-time"))
+        emu_set_device_time_from_host();
 
     if(parser.isSet("fido"))
         emu_fido_start();

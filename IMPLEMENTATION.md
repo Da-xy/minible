@@ -94,6 +94,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Step 4 done | `fido2-token -L` lists `/dev/hidraw2: vendor=0x1209, product=0x4322`. `fido2-token -I /dev/hidraw2` returns proto 2, caps 0x0c (nowink, cbor, nomsg), aaguid 6db042d0-61af-404c-a887-e72e09ba7eb4, options rk/up/uv/noplat, maxmsgsiz 1024: libfido2 drives `CTAPHID_INIT` and CTAP2 `getInfo` against the host-built aux code. First two attempts failed with `FIDO_ERR_INTERNAL` at `dev->io.open` (before any traffic); not reproducible afterwards (6 successful runs, including under strace). |
 | 2026-10-09 | Step 5 implemented | Request queue + response slot in `emu_fido_shim.c`; `emu_rcv_aux()` pops FIDO2 requests (`emu_fido_main_mcu_pop_request`), `emu_send_aux()` forwards `AUX_MCU_MSG_TYPE_FIDO2` messages (`emu_fido_main_mcu_push_response`). `comms_main_mcu_routine()` blocks up to 10 ms on a condvar, and like the real aux firmware resends the last request when the main MCU answers `AUX_MCU_FIDO2_RETRY`. Verified: aux/main struct layouts identical (sizeof/offsetof of aux_mcu_message_t and all FIDO2 structs, 20 values); `fido2-cred -M` request reaches `logic_fido2.c` (sub-type 0x0003, 484 bytes). Not yet verified: a completed makeCredential/getAssertion, which needs GUI interaction (see notes). |
 | 2026-10-09 | Step 5 first end-to-end result | User ran `fido2-cred -M /dev/hidraw2 es256` against `./Release-emu/minible --fido` (no Moolticute, no smartcard): `FIDO_ERR_OPERATION_DENIED` returned by the device. Consistent with the "time not set" branch of `logic_fido2_process_make_credential()` (`FIDO2_OPERATION_DENIED`); the screen content was not reported yet, so this is not confirmed. Full path request -> main MCU -> response -> host works. |
+| 2026-10-09 | Time not set confirmed, `--set-time` added | User confirmed the OLED showed "Time not set" for the makeCredential above. Added `--set-time` (`emu_set_device_time_from_host()` in `emu_aux_mcu.c`): does what Moolticute's `HID_CMD_ID_SET_DATE` handler does (RTC timestamp, `nodemgmt_set_current_date`, `logic_device_set_time_set`) with the host UTC clock. |
 
 ## 4. Notes and open points
 
@@ -149,3 +150,9 @@ into the emulator (no browser/USB path).
   (`--smartcard <file>`, PIN entered with the mouse), otherwise `FIDO2_USER_NOT_PRESENT`.
 - Do not use `pkill -f` patterns containing `--fido` from a tool shell: the shell's own command line
   matches.
+- Emulator persistent state: `eeprom.bin` and `dbflash.bin` are created in the directory the
+  emulator is started from (the emulated profile, smartcard data and credentials live there). Start
+  it from the same directory to keep the same device. They are git-ignored; they were committed by
+  mistake in `4de71e89` and `7e595359` (and untracked afterwards).
+- To run a FIDO2 test: `./Release-emu/minible --fido --set-time --bundle emu_assets/miniblebundle.img`
+  from `source_code/main_mcu`.

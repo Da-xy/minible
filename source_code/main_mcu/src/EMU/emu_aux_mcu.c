@@ -1,11 +1,15 @@
 #include "emu_aux_mcu.h"
 #include "comms_aux_mcu.h"
+#include "driver_timer.h"
+#include "logic_device.h"
+#include "nodemgmt.h"
 #include "emulator.h"
 #include "fido/emu_fido.h"
 
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
 static BOOL typing_return;
 static BOOL response_valid;
@@ -15,6 +19,28 @@ static BOOL has_been_already_paired_to_device = FALSE;
 static void send_hid_message(aux_mcu_message_t *msg);
 static BOOL process_main_cmd(aux_mcu_message_t *msg, aux_mcu_message_t *response);
 static BOOL process_ble_cmd(aux_mcu_message_t *msg, aux_mcu_message_t *response);
+
+/* Offset between struct tm and calendar year / month numbering */
+#define TM_YEAR_OFFSET  1900
+#define TM_MONTH_OFFSET 1
+
+/*! \fn     emu_set_device_time_from_host(void)
+*   \brief  Set the device date and time from the host clock (UTC)
+*   \note   Does what the HID_CMD_ID_SET_DATE handler does when Moolticute sends the time, so that
+*           features requiring a known time (such as FIDO2) work without Moolticute
+*/
+void emu_set_device_time_from_host(void)
+{
+    time_t now = time(NULL);
+    struct tm utc_time;
+    gmtime_r(&now, &utc_time);
+
+    uint16_t year = (uint16_t)(utc_time.tm_year + TM_YEAR_OFFSET);
+    uint16_t month = (uint16_t)(utc_time.tm_mon + TM_MONTH_OFFSET);
+    driver_timer_set_rtc_timestamp(year, month, (uint16_t)utc_time.tm_mday, (uint16_t)utc_time.tm_hour, (uint16_t)utc_time.tm_min, (uint16_t)utc_time.tm_sec);
+    nodemgmt_set_current_date(nodemgmt_construct_date(year, month, (uint16_t)utc_time.tm_mday));
+    logic_device_set_time_set();
+}
 
 /* copied from aux mcu/src/LOGIC/logic_battery.h */
 static lb_state_machine_te emu_charger_status;
