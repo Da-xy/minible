@@ -46,6 +46,7 @@ void logic_database_fetch_encrypted_TOTPsecret(uint16_t child_node_addr, uint8_t
 uint16_t logic_database_search_service(cust_char_t* name, service_compare_mode_te compare_type, BOOL cred_type, uint16_t category_id);
 void logic_database_update_credential(uint16_t child_addr, cust_char_t* desc, cust_char_t* third, uint8_t* password, uint8_t* ctr);
 uint16_t logic_database_search_webauthn_userhandle_in_service(uint16_t parent_addr, uint8_t* user_handle, uint8_t user_handle_len);
+BOOL logic_database_webauthn_user_name_exists_in_service(uint16_t parent_addr, cust_char_t* user_name);
 void logic_database_get_webauthn_userhandle_for_address(uint16_t child_addr, uint8_t* user_handle, uint8_t *user_handle_len);
 RET_TYPE logic_database_update_TOTP_credentials(uint16_t child_addr, TOTPcredentials_t const *TOTPcreds, uint8_t* ctr);
 uint16_t logic_database_add_service(cust_char_t* service, service_type_te cred_type, uint16_t data_category_id);

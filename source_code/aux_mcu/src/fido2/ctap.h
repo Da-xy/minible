@@ -146,6 +146,7 @@ enum ErrorCode
     USER_NOT_PRESENT = 2,
     STORAGE_EXHAUSTED = 3,
     FIDO2_NO_CREDENTIALS = 4,
+    FIDO2_DUPLICATE_USER_NAME = 5,
 };
 
 typedef struct

@@ -41,6 +41,7 @@ typedef enum
     FIDO2_USER_NOT_PRESENT = 2,
     FIDO2_STORAGE_EXHAUSTED = 3,
     FIDO2_NO_CREDENTIALS = 4,
+    FIDO2_DUPLICATE_USER_NAME = 5,
 } fido2_return_code_te;
 
 /* Prototypes */

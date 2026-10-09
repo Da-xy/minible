@@ -254,6 +254,8 @@ static int ctap_make_credential_auth_data(CTAP_requestCommon *req_common, uint8_
                 return CTAP2_ERR_KEY_STORE_FULL;
             case FIDO2_NO_CREDENTIALS:
                 return CTAP2_ERR_NO_CREDENTIALS;
+            case FIDO2_DUPLICATE_USER_NAME:
+                return CTAP2_ERR_LIMIT_EXCEEDED;
             default:
                 return CTAP2_ERR_NOT_ALLOWED; //TOOD:?
         };

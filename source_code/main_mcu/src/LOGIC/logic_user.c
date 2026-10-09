@@ -621,6 +621,12 @@ fido2_return_code_te logic_user_store_webauthn_credential(cust_char_t* rp_id, ui
     if (parent_address != NODE_ADDR_NULL)
     {
         child_address = logic_database_search_webauthn_userhandle_in_service(parent_address, user_handle, user_handle_len);
+        
+        /* Credentials are sorted by user name: refuse a new user handle using an already registered user name */
+        if (child_address == NODE_ADDR_NULL && logic_database_webauthn_user_name_exists_in_service(parent_address, user_name) != FALSE)
+        {
+            return FIDO2_DUPLICATE_USER_NAME;
+        }
     }
 
     /* Prepare prompt text */

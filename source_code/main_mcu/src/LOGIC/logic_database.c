@@ -445,6 +445,44 @@ uint16_t logic_database_search_webauthn_userhandle_in_service(uint16_t parent_ad
     return NODE_ADDR_NULL;
 }
 
+/*! \fn     logic_database_webauthn_user_name_exists_in_service(uint16_t parent_addr, cust_char_t* user_name)
+*   \brief  Check if a webauthn credential with the given user name exists for a given parent
+*   \param  parent_addr Parent node address
+*   \param  user_name   User name
+*   \return TRUE if a credential with this user name exists (credentials of a service are sorted by user name, so it must be unique)
+*/
+BOOL logic_database_webauthn_user_name_exists_in_service(uint16_t parent_addr, cust_char_t* user_name)
+{
+    child_webauthn_node_t* temp_half_cnode_pt;
+    parent_node_t temp_pnode;
+    uint16_t next_node_addr;
+    
+    /* Dirty trick */
+    temp_half_cnode_pt = (child_webauthn_node_t*)&temp_pnode;
+    
+    /* Read parent node and get first child address */
+    nodemgmt_read_parent_node(parent_addr, &temp_pnode, TRUE);
+    next_node_addr = temp_pnode.cred_parent.nextChildAddress;
+    
+    /* Go through the child nodes */
+    while (next_node_addr != NODE_ADDR_NULL)
+    {
+        /* Read child node */
+        nodemgmt_read_webauthn_child_node_except_display_name(next_node_addr, temp_half_cnode_pt, FALSE);
+        
+        /* Same comparison as the one used to sort the nodes */
+        if (utils_custchar_strncmp(user_name, temp_half_cnode_pt->user_name, MEMBER_ARRAY_SIZE(child_webauthn_node_t, user_name)) == 0)
+        {
+            return TRUE;
+        }
+        
+        /* Go to next one */
+        next_node_addr = temp_half_cnode_pt->nextChildAddress;
+    }
+    
+    return FALSE;
+}
+
 /*! \fn     logic_database_search_webauthn_credential_id_in_service(uint16_t parent_addr, uint8_t* credential_id)
 *   \brief  Find a given credential id for a given parent
 *   \param  parent_addr Parent node address
