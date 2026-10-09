@@ -63,8 +63,9 @@ can take many seconds.
 
 Estimate: about 1.5 to 2.5 days to a working end-to-end `makeCredential` / `getAssertion`.
 
-1. [ ] Host build of the aux CTAP sources under `source_code/main_mcu/src/EMU/fido/`
-       (shim headers, Makefile.emu rules), linked into the emulator but unused.
+1. [x] Host build of the aux CTAP sources: shim headers in `source_code/main_mcu/src/EMU/fido/shim/`,
+       `fido-objs` target in `Makefile.emu`. Objects are built but NOT linked into the emulator yet
+       (linking needs the step 2 shims, otherwise the 9 symbols are unresolved).
 2. [ ] Host shims for the 9 unresolved symbols (timers via `clock_gettime`).
 3. [ ] `uhid` bridge (`EMU/fido/emu_fido_hid.c`): create the device with the FIDO descriptor,
        feed output reports to `ctaphid_handle_packet()`, send `ctaphid_write_block()` output back
@@ -85,3 +86,15 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Investigation | Findings above. No firmware code changed yet. |
 | 2026-10-09 | Branch | Created `fido2-emulator-bridge` from `master`. |
 | 2026-10-09 | Host-compile experiment | Aux CTAP sources build on host with 2 stub headers; 9 symbols left to shim. |
+| 2026-10-09 | Step 1 done | `make -f Makefile.emu fido-objs` builds `ctap`, `ctap_parse`, `ctaphid`, `solo_compat_layer`, `cborencoder`, `cborparser` into `Release-emu/fido/` with no warnings. Still exactly the same 9 unresolved symbols. Emulator link unchanged. |
+
+## 4. Notes and open points
+
+- Step 1 build details: aux sources get their own include path (`src/EMU/fido/shim` first so it
+  beats `aux_mcu/src/asf.h`, then the aux dirs and `tinycbor/src`), `-DDEBUG_LOG_DISABLED`, and a
+  separate object dir `$(OUTPUT_DIR)/fido`. They are not compiled with the main MCU's strict
+  warning flags (third-party-derived Solo code).
+- The full emulator could not be built in the shell used for this work: `pkg-config` finds no
+  Qt5 packages and there is no `moc`/`qmake` (the shell is the VSCodium flatpak sandbox).
+  `fido-objs` does not need Qt. Building and running the emulator itself (needed from step 5 on)
+  must be done where Qt5 dev packages are available.
