@@ -72,7 +72,7 @@ Estimate: about 1.5 to 2.5 days to a working end-to-end `makeCredential` / `getA
 3. [x] `uhid` bridge (`EMU/fido/emu_fido_hid.c`, started with `./Release-emu/minible --fido`): create the device with the FIDO descriptor,
        feed output reports to `ctaphid_handle_packet()`, send `ctaphid_write_block()` output back
        as input reports.
-4. [ ] Checkpoint: `fido2-token -L` lists the device and `CTAPHID_INIT` works (no main MCU needed).
+4. [x] Checkpoint: `fido2-token -L` lists the device and `CTAPHID_INIT` works (no main MCU needed).
 5. [ ] Blocking RPC to the main MCU: request queue read by `emu_rcv_aux()`, `AUX_MCU_MSG_TYPE_FIDO2`
        case in `emu_send_aux()` that wakes the waiting CTAP thread, keepalives while waiting.
 6. [ ] End-to-end tests: `fido2-cred` / `fido2-assert`, then a browser (webauthn.io).
@@ -91,6 +91,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Step 1 done | `make -f Makefile.emu fido-objs` builds `ctap`, `ctap_parse`, `ctaphid`, `solo_compat_layer`, `cborencoder`, `cborparser` into `Release-emu/fido/` with no warnings. Still exactly the same 9 unresolved symbols. Emulator link unchanged. |
 | 2026-10-09 | Step 2 done | Added `emu_fido_shim.c`, `emu_fido.h`, `emu_fido_rename.h`; `FIDO_OBJS` added to the emulator link in `Makefile.emu`. Remaining undefined symbols of the fido objects: libc only. Host test (scratchpad, not committed): feeding a `CTAPHID_INIT` broadcast packet to `ctaphid_handle_packet()` returns one 64-byte reply (cid ffffffff, cmd 0x86, bcnt 17). Full emulator build and link verified (`make -f Makefile.emu`, Qt5 available after the shell change): `Release-emu/minible` links with the FIDO objects, no errors. |
 | 2026-10-09 | Step 3 done | Added `emu_fido_hid.c` (Linux uhid, one thread), `--fido` command line option, `emu_fido_start()/stop()` in `emulator.cpp`. Tested headless (`QT_QPA_PLATFORM=offscreen`) with a raw hidraw Python script: the device shows up as `1209:4322` ("Mooltipass Mini BLE emulator FIDO"), `CTAPHID_INIT` and `CTAPHID_PING` get correct replies from the real aux CTAP code. `fido2-token -L` not tried yet (package not installed). |
+| 2026-10-09 | Step 4 done | `fido2-token -L` lists `/dev/hidraw2: vendor=0x1209, product=0x4322`. `fido2-token -I /dev/hidraw2` returns proto 2, caps 0x0c (nowink, cbor, nomsg), aaguid 6db042d0-61af-404c-a887-e72e09ba7eb4, options rk/up/uv/noplat, maxmsgsiz 1024: libfido2 drives `CTAPHID_INIT` and CTAP2 `getInfo` against the host-built aux code. First two attempts failed with `FIDO_ERR_INTERNAL` at `dev->io.open` (before any traffic); not reproducible afterwards (6 successful runs, including under strace). |
 
 ## 4. Notes and open points
 
@@ -125,3 +126,9 @@ into the emulator (no browser/USB path).
 - CTAP requests that need the main MCU (makeCredential, getAssertion) will currently hit the
   placeholder `comms_main_mcu_*` shims: do not test them before step 5 (the CTAP thread would wait
   in a loop for an answer that never comes).
+- Intermittent `FIDO_ERR_INTERNAL` seen twice on the first runs of step 4, failing at
+  `fido_dev_open_tx: dev->io.open` (the open of the hidraw node itself). Cause not established; the
+  user ACL on the new node (granted asynchronously by udev/logind) is the suspect. If it comes back,
+  check `getfacl /dev/hidrawN` right after the failure and simply retry.
+- `fido2-token -L` shows empty manufacturer/product strings (`( )`): uhid has no USB parent to take
+  them from. Cosmetic only.
