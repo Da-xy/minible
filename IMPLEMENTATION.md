@@ -73,7 +73,7 @@ Estimate: about 1.5 to 2.5 days to a working end-to-end `makeCredential` / `getA
        feed output reports to `ctaphid_handle_packet()`, send `ctaphid_write_block()` output back
        as input reports.
 4. [x] Checkpoint: `fido2-token -L` lists the device and `CTAPHID_INIT` works (no main MCU needed).
-5. [ ] Blocking RPC to the main MCU: request queue read by `emu_rcv_aux()`, `AUX_MCU_MSG_TYPE_FIDO2`
+5. [~] (implemented, GUI-dependent end-to-end test pending) Blocking RPC to the main MCU: request queue read by `emu_rcv_aux()`, `AUX_MCU_MSG_TYPE_FIDO2`
        case in `emu_send_aux()` that wakes the waiting CTAP thread, keepalives while waiting.
 6. [ ] End-to-end tests: `fido2-cred` / `fido2-assert`, then a browser (webauthn.io).
 7. [ ] Docs: udev rule for `/dev/uhid` and hidraw access, how to run.
@@ -92,6 +92,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Step 2 done | Added `emu_fido_shim.c`, `emu_fido.h`, `emu_fido_rename.h`; `FIDO_OBJS` added to the emulator link in `Makefile.emu`. Remaining undefined symbols of the fido objects: libc only. Host test (scratchpad, not committed): feeding a `CTAPHID_INIT` broadcast packet to `ctaphid_handle_packet()` returns one 64-byte reply (cid ffffffff, cmd 0x86, bcnt 17). Full emulator build and link verified (`make -f Makefile.emu`, Qt5 available after the shell change): `Release-emu/minible` links with the FIDO objects, no errors. |
 | 2026-10-09 | Step 3 done | Added `emu_fido_hid.c` (Linux uhid, one thread), `--fido` command line option, `emu_fido_start()/stop()` in `emulator.cpp`. Tested headless (`QT_QPA_PLATFORM=offscreen`) with a raw hidraw Python script: the device shows up as `1209:4322` ("Mooltipass Mini BLE emulator FIDO"), `CTAPHID_INIT` and `CTAPHID_PING` get correct replies from the real aux CTAP code. `fido2-token -L` not tried yet (package not installed). |
 | 2026-10-09 | Step 4 done | `fido2-token -L` lists `/dev/hidraw2: vendor=0x1209, product=0x4322`. `fido2-token -I /dev/hidraw2` returns proto 2, caps 0x0c (nowink, cbor, nomsg), aaguid 6db042d0-61af-404c-a887-e72e09ba7eb4, options rk/up/uv/noplat, maxmsgsiz 1024: libfido2 drives `CTAPHID_INIT` and CTAP2 `getInfo` against the host-built aux code. First two attempts failed with `FIDO_ERR_INTERNAL` at `dev->io.open` (before any traffic); not reproducible afterwards (6 successful runs, including under strace). |
+| 2026-10-09 | Step 5 implemented | Request queue + response slot in `emu_fido_shim.c`; `emu_rcv_aux()` pops FIDO2 requests (`emu_fido_main_mcu_pop_request`), `emu_send_aux()` forwards `AUX_MCU_MSG_TYPE_FIDO2` messages (`emu_fido_main_mcu_push_response`). `comms_main_mcu_routine()` blocks up to 10 ms on a condvar, and like the real aux firmware resends the last request when the main MCU answers `AUX_MCU_FIDO2_RETRY`. Verified: aux/main struct layouts identical (sizeof/offsetof of aux_mcu_message_t and all FIDO2 structs, 20 values); `fido2-cred -M` request reaches `logic_fido2.c` (sub-type 0x0003, 484 bytes). Not yet verified: a completed makeCredential/getAssertion, which needs GUI interaction (see notes). |
 
 ## 4. Notes and open points
 
@@ -132,3 +133,18 @@ into the emulator (no browser/USB path).
   check `getfacl /dev/hidrawN` right after the failure and simply retry.
 - `fido2-token -L` shows empty manufacturer/product strings (`( )`): uhid has no USB parent to take
   them from. Cosmetic only.
+- **Step 5 behaviour to know.** The main MCU answers `AUX_MCU_FIDO2_RETRY` ("busy, send it again") to
+  any FIDO2 request while it is inside a blocking prompt or any state using a restricted
+  `comms_aux_mcu_routine()`. The real aux firmware resends the request until it gets a real answer,
+  and the shim does the same (2 ms pause between resends). The first version of the shim returned
+  the RETRY as if it were the answer, which produced an all-zero attestation and libfido2's
+  `FIDO_ERR_RX_INVALID_CBOR`; fixed.
+- **Why a headless `fido2-cred -M` hangs.** `logic_fido2_process_make_credential()` first checks
+  `logic_device_is_time_set()`. In the emulator the time is only set by Moolticute (HID message,
+  `comms_hid_msgs.c`), so without it the firmware shows the "time not set" warning and waits for a
+  click. Emulator input is the mouse on the OLED window: left click = wheel click, right click =
+  long press, scroll wheel = scroll. After the warning the request ends with `FIDO2_OPERATION_DENIED`.
+  A successful makeCredential needs: Moolticute connected (time set) and an unlocked smartcard
+  (`--smartcard <file>`, PIN entered with the mouse), otherwise `FIDO2_USER_NOT_PRESENT`.
+- Do not use `pkill -f` patterns containing `--fido` from a tool shell: the shell's own command line
+  matches.

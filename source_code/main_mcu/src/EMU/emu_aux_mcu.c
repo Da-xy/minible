@@ -1,6 +1,7 @@
 #include "emu_aux_mcu.h"
 #include "comms_aux_mcu.h"
 #include "emulator.h"
+#include "fido/emu_fido.h"
 
 #include <assert.h>
 #include <string.h>
@@ -29,6 +30,11 @@ void emu_send_aux(char *data, int size)
             send_hid_message(msg);
             break;
             
+        case AUX_MCU_MSG_TYPE_FIDO2:
+            /* Answer to a FIDO2 request: goes to the CTAP code, which is waiting for it */
+            emu_fido_main_mcu_push_response(msg, (uint32_t)size);
+            break;
+
         case AUX_MCU_MSG_TYPE_KEYBOARD_TYPE:
             memset(&response, 0, sizeof(response));
             response.message_type = AUX_MCU_MSG_TYPE_KEYBOARD_TYPE;
@@ -243,6 +249,10 @@ int emu_rcv_aux(char *data, int size)
         response_valid = FALSE;
         return sizeof(response);
     }
+
+    /* FIDO2 request coming from the CTAP code (see emu_fido_shim.c) */
+    if(emu_fido_main_mcu_pop_request(data, (uint32_t)size))
+        return sizeof(aux_mcu_message_t);
 
     /* generate "charging done" message */
     if(emu_charger_status == LB_CHARGE_START_RAMPING) {
