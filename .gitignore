@@ -21,4 +21,5 @@ scripts/battery_monitor/*.txt
 *.pyc
 source_code/main_mcu/minible_emu.pro.user
 source_code/build-*
-CLAUDE.md
+CLAUDE.mdsource_code/main_mcu/eeprom.bin
+source_code/main_mcu/dbflash.bin
