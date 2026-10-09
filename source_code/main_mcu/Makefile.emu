@@ -192,10 +192,10 @@ AUX_SRC_DIR    := ../aux_mcu/src
 FIDO_OBJ_DIR   := $(OUTPUT_DIR)/fido
 FIDO_INC_DIRS  := -I"src/EMU/fido/shim" -I"$(AUX_SRC_DIR)" -I"$(AUX_SRC_DIR)/fido2" -I"$(AUX_SRC_DIR)/COMMS" -I"$(AUX_SRC_DIR)/TIMER" -I"$(AUX_SRC_DIR)/tinycbor/src"
 FIDO_DEFINES   := -DDEBUG_LOG_DISABLED -include src/EMU/fido/emu_fido_rename.h
-FIDO_FLAGS     := -c -pipe -fPIC -Os -std=gnu99 -Wall -fdata-sections -ffunction-sections
+FIDO_FLAGS     := -c -pipe -fPIC -Os -std=gnu99 -D_GNU_SOURCE -Wall -fdata-sections -ffunction-sections
 FIDO_CTAP_SRCS := ctap ctap_parse ctaphid solo_compat_layer
 FIDO_CBOR_SRCS := cborencoder cborparser
-FIDO_SHIM_SRCS := emu_fido_shim
+FIDO_SHIM_SRCS := emu_fido_shim emu_fido_hid
 FIDO_OBJS      := $(FIDO_CTAP_SRCS:%=$(FIDO_OBJ_DIR)/%.o) $(FIDO_CBOR_SRCS:%=$(FIDO_OBJ_DIR)/%.o) $(FIDO_SHIM_SRCS:%=$(FIDO_OBJ_DIR)/%.o)
 
 $(FIDO_OBJ_DIR)/%.o: $(AUX_SRC_DIR)/fido2/%.c

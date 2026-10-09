@@ -14,7 +14,23 @@
 /*! \brief  Callback called with each CTAPHID packet the authenticator sends to the host */
 typedef void (*emu_fido_hid_tx_callback_t)(const uint8_t* packet, uint16_t length);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /*! \brief  Set (or clear with NULL) the callback receiving CTAPHID packets destined to the host */
 void emu_fido_set_hid_tx_callback(emu_fido_hid_tx_callback_t callback);
+
+/*! \brief  Create the virtual FIDO HID device and start the thread serving it (Linux uhid only)
+*   \return 0 if started, -1 on error (reason printed on stderr)
+*/
+int emu_fido_start(void);
+
+/*! \brief  Stop the thread started by emu_fido_start() and remove the virtual HID device */
+void emu_fido_stop(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* EMU_FIDO_H_ */
