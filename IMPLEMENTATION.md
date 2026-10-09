@@ -98,6 +98,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | makeCredential works | With `./Release-emu/minible --fido --set-time --bundle emu_assets/miniblebundle.img`, profile initialized and card unlocked: `fido2-cred -M /dev/hidraw2 es256` (rp `example.com`) returns a complete `packed` attestation: authData with AAGUID 6db042d0-61af-404c-a887-e72e09ba7eb4, credential id, ECDSA signature. Step 5 done for makeCredential. getAssertion and signature verification still to test (step 6). |
 | 2026-10-09 | Duplicate user name finding | Second `fido2-cred -M` for `example.com`/`testuser` with a different random user id failed with `FIDO_ERR_KEY_STORE_FULL` after the user approved the on-screen prompt. Cause: firmware limitation, not the bridge (see notes). |
 | 2026-10-09 | Step 6 (libfido2) done | With a unique user name: `fido2-cred -M` then `fido2-cred -V -o pubkey.pem es256` -> credential (attestation) signature verifies; `fido2-assert -G` then `fido2-assert -V pubkey.pem es256` -> assertion signature verifies. Browser test (webauthn.io) still to do. |
+| 2026-10-09 | Step 6 (browser) done | Registration and authentication on webauthn.io both work against the emulator (`--fido --set-time`). Remaining: step 7 (docs). |
 
 ## 4. Notes and open points
 
