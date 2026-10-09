@@ -96,6 +96,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Step 5 first end-to-end result | User ran `fido2-cred -M /dev/hidraw2 es256` against `./Release-emu/minible --fido` (no Moolticute, no smartcard): `FIDO_ERR_OPERATION_DENIED` returned by the device. Consistent with the "time not set" branch of `logic_fido2_process_make_credential()` (`FIDO2_OPERATION_DENIED`); the screen content was not reported yet, so this is not confirmed. Full path request -> main MCU -> response -> host works. |
 | 2026-10-09 | Time not set confirmed, `--set-time` added | User confirmed the OLED showed "Time not set" for the makeCredential above. Added `--set-time` (`emu_set_device_time_from_host()` in `emu_aux_mcu.c`): does what Moolticute's `HID_CMD_ID_SET_DATE` handler does (RTC timestamp, `nodemgmt_set_current_date`, `logic_device_set_time_set`) with the host UTC clock. |
 | 2026-10-09 | makeCredential works | With `./Release-emu/minible --fido --set-time --bundle emu_assets/miniblebundle.img`, profile initialized and card unlocked: `fido2-cred -M /dev/hidraw2 es256` (rp `example.com`) returns a complete `packed` attestation: authData with AAGUID 6db042d0-61af-404c-a887-e72e09ba7eb4, credential id, ECDSA signature. Step 5 done for makeCredential. getAssertion and signature verification still to test (step 6). |
+| 2026-10-09 | Duplicate user name finding | Second `fido2-cred -M` for `example.com`/`testuser` with a different random user id failed with `FIDO_ERR_KEY_STORE_FULL` after the user approved the on-screen prompt. Cause: firmware limitation, not the bridge (see notes). |
 
 ## 4. Notes and open points
 
@@ -157,3 +158,13 @@ into the emulator (no browser/USB path).
   mistake in `4de71e89` and `7e595359` (and untracked afterwards).
 - To run a FIDO2 test: `./Release-emu/minible --fido --set-time --bundle emu_assets/miniblebundle.img`
   from `source_code/main_mcu`.
+- **Firmware limitation (also on hardware): one credential per user name per site.** WebAuthn
+  credentials of a service are kept sorted by `user_name`
+  (`child_webauthn_node_t`, comment "this is what will be used for alphabetical sorting").
+  `nodemgmt_create_generic_node()` returns `RETURN_NOK` when the new child compares equal to an
+  existing one; `logic_user_store_webauthn_credential()` maps that to `FIDO2_STORAGE_EXHAUSTED`, and
+  `ctap.c` to `CTAP2_ERR_KEY_STORE_FULL`. So a second credential with the same user name but a
+  different user id on the same relying party is refused with a misleading "key store full" error,
+  after the user has approved the prompt. Same user name AND same user id is the update path and
+  works. Possible FIDO2 improvement to consider later: report a distinct error, or sort by
+  user name then user handle. When testing, use a different user name each time.
