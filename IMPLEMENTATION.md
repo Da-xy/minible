@@ -75,8 +75,8 @@ Estimate: about 1.5 to 2.5 days to a working end-to-end `makeCredential` / `getA
 4. [x] Checkpoint: `fido2-token -L` lists the device and `CTAPHID_INIT` works (no main MCU needed).
 5. [x] Blocking RPC to the main MCU: request queue read by `emu_rcv_aux()`, `AUX_MCU_MSG_TYPE_FIDO2`
        case in `emu_send_aux()` that wakes the waiting CTAP thread, keepalives while waiting.
-6. [ ] End-to-end tests: `fido2-cred` / `fido2-assert`, then a browser (webauthn.io).
-7. [ ] Docs: udev rule for `/dev/uhid` and hidraw access, how to run.
+6. [x] End-to-end tests: `fido2-cred` / `fido2-assert`, then a browser (webauthn.io).
+7. [x] Docs: udev rule for `/dev/uhid` and hidraw access, how to run (`source_code/main_mcu/src/EMU/fido/README.md`).
 
 Fallback if the bridge turns out too costly: a test harness injecting raw CTAP2 CBOR requests
 into the emulator (no browser/USB path).
@@ -99,6 +99,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Duplicate user name finding | Second `fido2-cred -M` for `example.com`/`testuser` with a different random user id failed with `FIDO_ERR_KEY_STORE_FULL` after the user approved the on-screen prompt. Cause: firmware limitation, not the bridge (see notes). |
 | 2026-10-09 | Step 6 (libfido2) done | With a unique user name: `fido2-cred -M` then `fido2-cred -V -o pubkey.pem es256` -> credential (attestation) signature verifies; `fido2-assert -G` then `fido2-assert -V pubkey.pem es256` -> assertion signature verifies. Browser test (webauthn.io) still to do. |
 | 2026-10-09 | Step 6 (browser) done | Registration and authentication on webauthn.io both work against the emulator (`--fido --set-time`). Remaining: step 7 (docs). |
+| 2026-10-09 | Step 7 and follow-ups | Added `src/EMU/fido/README.md` (setup, run, checks, limits). Removed `eeprom.bin`/`dbflash.bin` from history (branch rewritten; pre-rewrite state kept in local branch `fido2-emulator-bridge-backup`, which still contains them: delete it before pushing). Firmware: duplicate user name is now detected before the prompt (`logic_database_webauthn_user_name_exists_in_service`) and answered with the new `FIDO2_DUPLICATE_USER_NAME`, mapped to `CTAP2_ERR_LIMIT_EXCEEDED` in `ctap.c`. Builds; behaviour on screen not yet tested. |
 
 ## 4. Notes and open points
 
@@ -166,7 +167,7 @@ into the emulator (no browser/USB path).
   `nodemgmt_create_generic_node()` returns `RETURN_NOK` when the new child compares equal to an
   existing one; `logic_user_store_webauthn_credential()` maps that to `FIDO2_STORAGE_EXHAUSTED`, and
   `ctap.c` to `CTAP2_ERR_KEY_STORE_FULL`. So a second credential with the same user name but a
-  different user id on the same relying party is refused with a misleading "key store full" error,
-  after the user has approved the prompt. Same user name AND same user id is the update path and
+  different user id on the same relying party used to be refused with a misleading "key store full" error after the user approved the prompt
+  (now detected up front, see the last progress row). Same user name AND same user id is the update path and
   works. Possible FIDO2 improvement to consider later: report a distinct error, or sort by
   user name then user handle. When testing, use a different user name each time.
