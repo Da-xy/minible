@@ -184,6 +184,35 @@ C_DEPS := $(OBJS:%.o=%.d)
 
 TARGET := $(OUTPUT_DIR)/minible
 
+# Aux MCU FIDO2 (CTAP2/CTAPHID) sources, built for the host.
+# These come from the aux MCU tree, which has its own aux_mcu_message_t definition that cannot be
+# mixed with the main MCU one: they are compiled with their own include path (shim headers first,
+# so that they win over aux_mcu/src/asf.h) and their own object directory.
+AUX_SRC_DIR    := ../aux_mcu/src
+FIDO_OBJ_DIR   := $(OUTPUT_DIR)/fido
+FIDO_INC_DIRS  := -I"src/EMU/fido/shim" -I"$(AUX_SRC_DIR)" -I"$(AUX_SRC_DIR)/fido2" -I"$(AUX_SRC_DIR)/COMMS" -I"$(AUX_SRC_DIR)/TIMER" -I"$(AUX_SRC_DIR)/tinycbor/src"
+FIDO_DEFINES   := -DDEBUG_LOG_DISABLED -include src/EMU/fido/emu_fido_rename.h
+FIDO_FLAGS     := -c -pipe -fPIC -Os -std=gnu99 -Wall -fdata-sections -ffunction-sections
+FIDO_CTAP_SRCS := ctap ctap_parse ctaphid solo_compat_layer
+FIDO_CBOR_SRCS := cborencoder cborparser
+FIDO_SHIM_SRCS := emu_fido_shim
+FIDO_OBJS      := $(FIDO_CTAP_SRCS:%=$(FIDO_OBJ_DIR)/%.o) $(FIDO_CBOR_SRCS:%=$(FIDO_OBJ_DIR)/%.o) $(FIDO_SHIM_SRCS:%=$(FIDO_OBJ_DIR)/%.o)
+
+$(FIDO_OBJ_DIR)/%.o: $(AUX_SRC_DIR)/fido2/%.c
+	@$(call create_dir,$(dir $@))
+	$(CC) $(FIDO_FLAGS) $(FIDO_DEFINES) $(FIDO_INC_DIRS) -o "$@" "$<"
+
+$(FIDO_OBJ_DIR)/%.o: $(AUX_SRC_DIR)/tinycbor/src/%.c
+	@$(call create_dir,$(dir $@))
+	$(CC) $(FIDO_FLAGS) $(FIDO_DEFINES) $(FIDO_INC_DIRS) -o "$@" "$<"
+
+$(FIDO_OBJ_DIR)/%.o: src/EMU/fido/%.c
+	@$(call create_dir,$(dir $@))
+	$(CC) $(FIDO_FLAGS) $(FIDO_DEFINES) $(FIDO_INC_DIRS) -o "$@" "$<"
+
+# Compile the aux FIDO2 sources only (not linked into the emulator yet)
+fido-objs: $(FIDO_OBJS)
+
 # All Target
 all: $(TARGET)
 build: $(TARGET)
@@ -212,36 +241,12 @@ $(OUTPUT_DIR)/%.o: $(OUTPUT_DIR)/%.cpp $(OUTPUT_DIR)/%.d
 $(OUTPUT_DIR)/%.moc.cpp: %.h
 	$(MOC) $(INC_DIRS) $< -o $@
 
-$(TARGET): $(OBJS) $(LIB_DEP)
+$(TARGET): $(OBJS) $(FIDO_OBJS) $(LIB_DEP)
 	@echo Building target: $@
 	@$(call create_dir,build)
 	@echo Invoking: GNU Linker
-	$(CPP) -o$(TARGET) $(OBJS) $(LIBS) -lm $(LIB_DIRS) -Wl,--gc-sections
+	$(CPP) -o$(TARGET) $(OBJS) $(FIDO_OBJS) $(LIBS) -lm $(LIB_DIRS) -Wl,--gc-sections
 	@echo Finished building target: $@
-
-# Aux MCU FIDO2 (CTAP2/CTAPHID) sources, built for the host.
-# These come from the aux MCU tree, which has its own aux_mcu_message_t definition that cannot be
-# mixed with the main MCU one: they are compiled with their own include path (shim headers first,
-# so that they win over aux_mcu/src/asf.h) and their own object directory.
-AUX_SRC_DIR    := ../aux_mcu/src
-FIDO_OBJ_DIR   := $(OUTPUT_DIR)/fido
-FIDO_INC_DIRS  := -I"src/EMU/fido/shim" -I"$(AUX_SRC_DIR)" -I"$(AUX_SRC_DIR)/fido2" -I"$(AUX_SRC_DIR)/COMMS" -I"$(AUX_SRC_DIR)/TIMER" -I"$(AUX_SRC_DIR)/tinycbor/src"
-FIDO_DEFINES   := -DDEBUG_LOG_DISABLED
-FIDO_FLAGS     := -c -pipe -fPIC -Os -std=gnu99 -Wall -fdata-sections -ffunction-sections
-FIDO_CTAP_SRCS := ctap ctap_parse ctaphid solo_compat_layer
-FIDO_CBOR_SRCS := cborencoder cborparser
-FIDO_OBJS      := $(FIDO_CTAP_SRCS:%=$(FIDO_OBJ_DIR)/%.o) $(FIDO_CBOR_SRCS:%=$(FIDO_OBJ_DIR)/%.o)
-
-$(FIDO_OBJ_DIR)/%.o: $(AUX_SRC_DIR)/fido2/%.c
-	@$(call create_dir,$(dir $@))
-	$(CC) $(FIDO_FLAGS) $(FIDO_DEFINES) $(FIDO_INC_DIRS) -o "$@" "$<"
-
-$(FIDO_OBJ_DIR)/%.o: $(AUX_SRC_DIR)/tinycbor/src/%.c
-	@$(call create_dir,$(dir $@))
-	$(CC) $(FIDO_FLAGS) $(FIDO_DEFINES) $(FIDO_INC_DIRS) -o "$@" "$<"
-
-# Compile the aux FIDO2 sources only (not linked into the emulator yet)
-fido-objs: $(FIDO_OBJS)
 
 # Other Targets
 clean:
