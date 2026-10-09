@@ -73,7 +73,7 @@ Estimate: about 1.5 to 2.5 days to a working end-to-end `makeCredential` / `getA
        feed output reports to `ctaphid_handle_packet()`, send `ctaphid_write_block()` output back
        as input reports.
 4. [x] Checkpoint: `fido2-token -L` lists the device and `CTAPHID_INIT` works (no main MCU needed).
-5. [~] (implemented, GUI-dependent end-to-end test pending) Blocking RPC to the main MCU: request queue read by `emu_rcv_aux()`, `AUX_MCU_MSG_TYPE_FIDO2`
+5. [x] Blocking RPC to the main MCU: request queue read by `emu_rcv_aux()`, `AUX_MCU_MSG_TYPE_FIDO2`
        case in `emu_send_aux()` that wakes the waiting CTAP thread, keepalives while waiting.
 6. [ ] End-to-end tests: `fido2-cred` / `fido2-assert`, then a browser (webauthn.io).
 7. [ ] Docs: udev rule for `/dev/uhid` and hidraw access, how to run.
@@ -95,6 +95,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Step 5 implemented | Request queue + response slot in `emu_fido_shim.c`; `emu_rcv_aux()` pops FIDO2 requests (`emu_fido_main_mcu_pop_request`), `emu_send_aux()` forwards `AUX_MCU_MSG_TYPE_FIDO2` messages (`emu_fido_main_mcu_push_response`). `comms_main_mcu_routine()` blocks up to 10 ms on a condvar, and like the real aux firmware resends the last request when the main MCU answers `AUX_MCU_FIDO2_RETRY`. Verified: aux/main struct layouts identical (sizeof/offsetof of aux_mcu_message_t and all FIDO2 structs, 20 values); `fido2-cred -M` request reaches `logic_fido2.c` (sub-type 0x0003, 484 bytes). Not yet verified: a completed makeCredential/getAssertion, which needs GUI interaction (see notes). |
 | 2026-10-09 | Step 5 first end-to-end result | User ran `fido2-cred -M /dev/hidraw2 es256` against `./Release-emu/minible --fido` (no Moolticute, no smartcard): `FIDO_ERR_OPERATION_DENIED` returned by the device. Consistent with the "time not set" branch of `logic_fido2_process_make_credential()` (`FIDO2_OPERATION_DENIED`); the screen content was not reported yet, so this is not confirmed. Full path request -> main MCU -> response -> host works. |
 | 2026-10-09 | Time not set confirmed, `--set-time` added | User confirmed the OLED showed "Time not set" for the makeCredential above. Added `--set-time` (`emu_set_device_time_from_host()` in `emu_aux_mcu.c`): does what Moolticute's `HID_CMD_ID_SET_DATE` handler does (RTC timestamp, `nodemgmt_set_current_date`, `logic_device_set_time_set`) with the host UTC clock. |
+| 2026-10-09 | makeCredential works | With `./Release-emu/minible --fido --set-time --bundle emu_assets/miniblebundle.img`, profile initialized and card unlocked: `fido2-cred -M /dev/hidraw2 es256` (rp `example.com`) returns a complete `packed` attestation: authData with AAGUID 6db042d0-61af-404c-a887-e72e09ba7eb4, credential id, ECDSA signature. Step 5 done for makeCredential. getAssertion and signature verification still to test (step 6). |
 
 ## 4. Notes and open points
 
