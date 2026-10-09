@@ -89,7 +89,7 @@ into the emulator (no browser/USB path).
 | 2026-10-09 | Branch | Created `fido2-emulator-bridge` from `master`. |
 | 2026-10-09 | Host-compile experiment | Aux CTAP sources build on host with 2 stub headers; 9 symbols left to shim. |
 | 2026-10-09 | Step 1 done | `make -f Makefile.emu fido-objs` builds `ctap`, `ctap_parse`, `ctaphid`, `solo_compat_layer`, `cborencoder`, `cborparser` into `Release-emu/fido/` with no warnings. Still exactly the same 9 unresolved symbols. Emulator link unchanged. |
-| 2026-10-09 | Step 2 done | Added `emu_fido_shim.c`, `emu_fido.h`, `emu_fido_rename.h`; `FIDO_OBJS` added to the emulator link in `Makefile.emu`. Remaining undefined symbols of the fido objects: libc only. Host test (scratchpad, not committed): feeding a `CTAPHID_INIT` broadcast packet to `ctaphid_handle_packet()` returns one 64-byte reply (cid ffffffff, cmd 0x86, bcnt 17). Full emulator link not tried here (no Qt in my shell): please run `make -f Makefile.emu` to confirm it links. |
+| 2026-10-09 | Step 2 done | Added `emu_fido_shim.c`, `emu_fido.h`, `emu_fido_rename.h`; `FIDO_OBJS` added to the emulator link in `Makefile.emu`. Remaining undefined symbols of the fido objects: libc only. Host test (scratchpad, not committed): feeding a `CTAPHID_INIT` broadcast packet to `ctaphid_handle_packet()` returns one 64-byte reply (cid ffffffff, cmd 0x86, bcnt 17). Full emulator build and link verified (`make -f Makefile.emu`, Qt5 available after the shell change): `Release-emu/minible` links with the FIDO objects, no errors. |
 
 ## 4. Notes and open points
 
